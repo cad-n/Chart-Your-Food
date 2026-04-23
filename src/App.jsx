@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   Plus, 
   Leaf, 
@@ -42,12 +42,58 @@ import {
   onAuthStateChanged 
 } from 'firebase/auth';
 
-// Firebase initialization using provided global environment variables
-const firebaseConfig = JSON.parse(__firebase_config);
-const app = initializeApp(firebaseConfig);
+/**
+ * Configuration Resolver
+ * This function safely resolves configuration settings to avoid crashes in 
+ * environments where 'import.meta' or specific global variables are unavailable.
+ */
+const resolveGlobalConfig = () => {
+  const config = {
+    firebase: {},
+    appId: 'chart-your-food',
+    geminiKey: ''
+  };
+
+  // 1. Attempt to resolve from Canvas/Sandbox globals
+  if (typeof __firebase_config !== 'undefined' && __firebase_config) {
+    try {
+      config.firebase = JSON.parse(__firebase_config);
+      config.appId = typeof __app_id !== 'undefined' ? __app_id : 'chart-your-food';
+    } catch (e) {
+      console.error("Global config parse error", e);
+    }
+  } 
+  // 2. Attempt to resolve from Vite environment variables (Production/Local)
+  else {
+    try {
+      // Use a string-based check to avoid compiler warnings in non-Vite environments
+      const env = (import.meta && import.meta.env) ? import.meta.env : {};
+      config.firebase = {
+        apiKey: env.VITE_FIREBASE_API_KEY,
+        authDomain: env.VITE_FIREBASE_AUTH_DOMAIN,
+        projectId: env.VITE_FIREBASE_PROJECT_ID,
+        storageBucket: env.VITE_FIREBASE_STORAGE_BUCKET,
+        messagingSenderId: env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+        appId: env.VITE_FIREBASE_APP_ID
+      };
+      config.appId = env.VITE_APP_ID || 'chart-your-food';
+      config.geminiKey = env.VITE_GEMINI_API_KEY || '';
+    } catch (e) {
+      // Fallback for isolated compilers
+    }
+  }
+
+  // CRITICAL FIX: Sanitize appId. Firebase paths break if appId contains slashes (making segments even).
+  config.appId = String(config.appId).replace(/\//g, '_');
+  
+  return config;
+};
+
+const appConfig = resolveGlobalConfig();
+const app = initializeApp(appConfig.firebase);
 const auth = getAuth(app);
 const db = getFirestore(app);
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'chart-your-food';
+const appId = appConfig.appId;
 
 // --- Shared Design Tokens ---
 const synchronizedLabelStyle = "text-sm font-medium text-emerald-800 uppercase tracking-[0.25em]";
@@ -137,7 +183,7 @@ const App = () => {
     icon: '🍽️'
   });
 
-  // Authentication logic following mandatory rule: Auth before queries
+  // Authentication logic
   useEffect(() => {
     const initAuth = async () => {
       try {
@@ -147,7 +193,7 @@ const App = () => {
           await signInAnonymously(auth);
         }
       } catch (error) {
-        console.error("Auth error:", error);
+        console.error("Auth initialization error:", error);
       }
     };
     initAuth();
@@ -155,7 +201,7 @@ const App = () => {
     return () => unsubscribe();
   }, []);
 
-  // Data fetching logic following mandatory rule: use user.uid in path
+  // Data fetching logic
   useEffect(() => {
     if (!user) return;
 
@@ -193,7 +239,9 @@ const App = () => {
     if (!targetName) return;
     loadingSetter(true);
     errorSetter("");
-    const apiKey = ""; // Set by environment
+    
+    // Use resolved key
+    const apiKey = appConfig.geminiKey || ""; 
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
 
     const payload = {
@@ -227,11 +275,17 @@ const App = () => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         });
+        
+        if (response.status === 401 || response.status === 403) {
+          throw new Error("Invalid API Key. Check your environment variables.");
+        }
+
         if (!response.ok) throw new Error('API Error');
         const data = await response.json();
         const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
         return JSON.parse(text);
       } catch (error) {
+        if (error.message.includes("Key")) throw error;
         if (retries < 5) {
           const delay = Math.pow(2, retries) * 1000;
           await new Promise(resolve => setTimeout(resolve, delay));
@@ -256,7 +310,7 @@ const App = () => {
         }));
       }
     } catch (err) {
-      errorSetter("Network error during AI analysis. Please try again.");
+      errorSetter(err.message || "Network error during AI analysis. Please try again.");
     } finally {
       loadingSetter(false);
     }
@@ -874,7 +928,27 @@ const App = () => {
                   viewMode === 'week' ? (
                     <table className="w-full text-left border-collapse">
                       <thead><tr className="bg-stone-50/80 border-b border-stone-100 font-black text-stone-400 uppercase text-[10px] tracking-widest"><th className="px-8 py-5 sticky left-0 bg-stone-50 z-10 border-r border-stone-200">Matrix</th>{weeklyMatrixData.days.map((day, idx) => (<th key={idx} onClick={() => setSelectedDate(day.timestamp)} className={`px-6 py-5 text-center min-w-[100px] cursor-pointer hover:bg-emerald-50 transition-colors ${idx === 6 ? 'text-emerald-700 bg-emerald-50/30 font-bold' : ''}`}><div className="text-[9px] mb-0.5 opacity-60">{day.label}</div><div>{day.date}</div></th>))}</tr></thead>
-                      <tbody className="divide-y divide-stone-50">{[{ label: 'kcal', icon: <TrendingUp className="w-3 h-3 text-emerald-600" />, data: weeklyMatrixData.matrix.kcal, format: v => v.toLocaleString() },{ label: 'Prot (g)', color: 'bg-amber-400', data: weeklyMatrixData.matrix.protein },{ label: 'Fat (g)', color: 'bg-emerald-400', data: weeklyMatrixData.matrix.fat },{ label: 'Carb (g)', color: 'bg-blue-400', data: weeklyMatrixData.matrix.carbs }].map((row) => (<tr key={row.label} className="hover:bg-emerald-50/30 transition-colors"><td className="px-8 py-6 font-bold text-stone-600 sticky left-0 bg-white border-r border-stone-100 flex items-center gap-2">{row.icon || <div className={`w-1.5 h-1.5 rounded-full ${row.color}`} />} {row.label}</td>{row.data.map((val, cIdx) => (<td key={cIdx} onClick={() => setSelectedDate(weeklyMatrixData.days[cIdx].timestamp)} className={`px-6 py-6 text-center font-mono cursor-pointer ${cIdx === 6 ? 'bg-emerald-50/20 font-bold' : ''} ${val > 0 ? 'text-stone-700' : 'text-stone-200'}`}>{val > 0 ? (row.format ? row.format(val) : Math.round(val * 10) / 10) : '-'}</td>))}</tr>))}</tbody>
+                      <tbody className="divide-y divide-stone-50">
+                        {/* Weekly Data Rows */}
+                        {[
+                          { label: 'kcal', icon: TrendingUp, color: 'emerald', data: weeklyMatrixData.matrix.kcal, format: v => v.toLocaleString() },
+                          { label: 'Prot (g)', icon: null, color: 'amber', data: weeklyMatrixData.matrix.protein },
+                          { label: 'Fat (g)', icon: null, color: 'emerald', data: weeklyMatrixData.matrix.fat },
+                          { label: 'Carb (g)', icon: null, color: 'blue', data: weeklyMatrixData.matrix.carbs }
+                        ].map((row) => (
+                          <tr key={row.label} className="hover:bg-emerald-50/30 transition-colors">
+                            <td className="px-8 py-6 font-bold text-stone-600 sticky left-0 bg-white border-r border-stone-100 flex items-center gap-2">
+                              {row.icon ? <row.icon className="w-3 h-3 text-emerald-600" /> : <div className={`w-1.5 h-1.5 rounded-full bg-${row.color}-400`} />} 
+                              {row.label}
+                            </td>
+                            {row.data.map((val, cIdx) => (
+                              <td key={cIdx} onClick={() => setSelectedDate(weeklyMatrixData.days[cIdx].timestamp)} className={`px-6 py-6 text-center font-mono cursor-pointer ${cIdx === 6 ? 'bg-emerald-50/20 font-bold' : ''} ${val > 0 ? 'text-stone-700' : 'text-stone-200'}`}>
+                                {val > 0 ? (row.format ? row.format(val) : Math.round(val * 10) / 10) : '-'}
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
                     </table>
                   ) : (
                     <div className="p-8">
