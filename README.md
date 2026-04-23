@@ -1,16 +1,35 @@
-# React + Vite
+ChartYourFood: The Rational Quantitative Diet Log
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Live Demo: https://chart-your-food-l0mb1p0zv-cad-ns-projects.vercel.app/
 
-Currently, two official plugins are available:
+Overview
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+ChartYourFood is a high-fidelity quantitative analysis platform designed for the rigorous tracking of nutritional density and caloric expenditure. It provides a rational interface for individuals prioritizing data integrity in their dietary habits, moving away from subjective logging toward precise data entry and AI-assisted estimation.
 
-## React Compiler
+Core Features
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+AI-Driven Nutritional Analysis: Utilizes the Gemini 2.5 Flash model to estimate caloric and macronutrient values from natural language descriptions.
 
-## Expanding the ESLint configuration
+Real-Time Data Synchronization: Implements Cloud Firestore for persistent, multi-device data integrity.
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+Quantitative Visualization: Features daily, weekly (matrix), and monthly (calendar) views for longitudinal data analysis.
+
+Anonymous Authentication: Employs Firebase Anonymous Auth to provide immediate utility while maintaining isolated user data silos.
+
+Technical Stack
+
+Frontend: React 19 (Vite)
+
+Styling: Tailwind CSS v4
+
+Backend-as-a-Service: Firebase (Firestore, Authentication)
+
+AI Integration: Google Generative AI (Gemini API)
+
+Iconography: Lucide React
+
+Architectural Note
+
+The application adheres to a "Single-File Mandate" for its core logic (src/App.jsx) to maximize development speed and maintain high-fidelity state management. It utilizes modern React patterns, including useMemo for complex data aggregations and useRef for optimized keyboard navigation.
+
+Developed by Caden Andrews
