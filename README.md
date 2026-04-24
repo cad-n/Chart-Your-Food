@@ -8,7 +8,7 @@ ChartYourFood is a high-fidelity quantitative analysis platform designed for the
 
 Core Features
 
-AI-Driven Nutritional Analysis: Utilizes the Gemini 2.5 Flash model to estimate caloric and macronutrient values from natural language descriptions.
+AI-Driven Nutritional Analysis: Utilizes the Gemini 3.1 Flash model to estimate caloric and macronutrient values from natural language descriptions.
 
 Real-Time Data Synchronization: Implements Cloud Firestore for persistent, multi-device data integrity.
 
