@@ -66,20 +66,19 @@ const resolveGlobalConfig = () => {
   // 2. Attempt to resolve from Vite environment variables (Production/Local)
   else {
     try {
-      // Use a string-based check to avoid compiler warnings in non-Vite environments
-      const env = (import.meta && import.meta.env) ? import.meta.env : {};
+      // Direct property access is required for Vite's static replacement during production builds
       config.firebase = {
-        apiKey: env.VITE_FIREBASE_API_KEY,
-        authDomain: env.VITE_FIREBASE_AUTH_DOMAIN,
-        projectId: env.VITE_FIREBASE_PROJECT_ID,
-        storageBucket: env.VITE_FIREBASE_STORAGE_BUCKET,
-        messagingSenderId: env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-        appId: env.VITE_FIREBASE_APP_ID
+        apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+        authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+        projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+        storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+        messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+        appId: import.meta.env.VITE_FIREBASE_APP_ID
       };
-      config.appId = env.VITE_APP_ID || 'chart-your-food';
-      config.geminiKey = env.VITE_GEMINI_API_KEY || '';
+      config.appId = import.meta.env.VITE_APP_ID || 'chart-your-food';
+      config.geminiKey = import.meta.env.VITE_GEMINI_API_KEY || '';
     } catch (e) {
-      // Fallback for isolated compilers
+      // Fallback for non-Vite or isolated environments
     }
   }
 
@@ -242,7 +241,7 @@ const App = () => {
     
     // Use resolved key
     const apiKey = appConfig.geminiKey || ""; 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${apiKey}`;
    
     const payload = {
       contents: [{ parts: [{ text: `Provide estimated calories, protein, fat, carbs, and a relevant food icon for: ${targetName}` }] }],
